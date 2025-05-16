@@ -1,7 +1,6 @@
 fastapi
 uvicorn
 xgboost
-scikit-lear
-n
+scikit-learn
 pandas
 numpy
