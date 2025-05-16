@@ -1,49 +1,48 @@
-# main.py
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import xgboost as xgb
-import numpy as np
-import pickle
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
+import xgboost as xgb
+import pickle
 
 app = FastAPI()
 
-# Load model and other assets
+# Allow CORS (so frontend like Bolt can access this API)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Change to your frontend domain in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Load model and encoders
 model = pickle.load(open("xgb_model.pkl", "rb"))
 label_encoders = pickle.load(open("label_encoders.pkl", "rb"))
-expected_columns = pd.read_csv("placement_synthetic_data_5000.csv").drop(columns=["PlacedOrNot"]).columns.tolist()
 
-# Define input schema
-class PlacementInput(BaseModel):
-    data: dict
-
-@app.get("/")
-def root():
-    return {"message": "Placement predictor API is running."}
+# Expected input columns
+expected_columns = [
+    "gender", "cgpa", "stream", "work_experience", "internship_experience",
+    "technical_proficiency", "communication_skills", "leadership_role",
+    "num_projects", "competitions_won"
+]
 
 @app.post("/predict")
-def predict(input: PlacementInput):
-    try:
-        input_data = input.data
+async def predict(request: Request):
+    input_data = await request.json()
 
-        # Convert input dict to DataFrame
+    try:
         df = pd.DataFrame([input_data])
 
-        # Ensure all required columns are present
-        for col in expected_columns:
-            if col not in df.columns:
-                df[col] = 0
-
+        # Ensure correct column order
         df = df[expected_columns]
 
-        # Apply label encoders
-        for col, le in label_encoders.items():
-            if col in df.columns:
-                df[col] = le.transform(df[col])
+        # Apply label encoding where necessary
+        for col in df.columns:
+            if col in label_encoders:
+                df[col] = label_encoders[col].transform(df[col])
 
-        # Predict
-        prediction = model.predict(df)
-        return {"prediction": int(prediction[0])}
+        prediction = model.predict(df)[0]
+        return {"predicted_package": float(prediction)}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"error": str(e)}
