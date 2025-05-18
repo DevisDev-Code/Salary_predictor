@@ -27,8 +27,7 @@ expected_columns = [
 
 # Define columns that need label encoding
 categorical_columns = [
-    "gender", "stream", "work_experience", "internship_experience",
-    "leadership_role"
+    "gender", "stream", "leadership_role"
 ]
 
 @app.post("/predict")
@@ -52,6 +51,8 @@ async def predict(request: Request):
 
         # Ensure correct column order
         df = df[expected_columns]
+
+        print("Final input to model:", df.to_dict(orient="records"))
 
         # Make prediction
         prediction = model.predict(df)[0]
