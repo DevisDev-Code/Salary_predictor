@@ -56,7 +56,11 @@ async def predict(request: Request):
 
         # Make prediction
         prediction = model.predict(df)[0]
-        return {"predicted_package": float(prediction)}
+
+        # Decode the label using the 'final_package' label encoder
+        decoded_prediction = label_encoders["final_package"].inverse_transform([int(prediction)])[0]
+
+        return {"predicted_package": decoded_prediction}
 
     except Exception as e:
         return {"error": str(e)}
